@@ -81,6 +81,44 @@ app.delete("/todos/:id", async (req, res) => {
     console.log(err.message);
   }
 });
+app.put("/todos/complete/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Get the todo to mark as complete
+    const todo = await pool.query("SELECT * FROM todo WHERE todo_id = $1", [id]);
+    // Insert the todo into the complete table
+    await pool.query("INSERT INTO complete (description) VALUES ($1)", [todo.rows[0].description]);
+    // Delete the todo from the todo table
+    await pool.query("DELETE FROM todo WHERE todo_id = $1", [id]);
+    
+    res.json("Todo marked as complete!");
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json("Server Error");
+  }
+});
+// get all completed todos
+app.get("/complete", async (req, res) => {
+  try {
+    const completedTodos = await pool.query("SELECT * FROM complete");
+    res.json(completedTodos.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json("Server Error");
+  }
+});
+
+app.delete("/complete/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM complete WHERE comp_id = $1", [id]);
+    res.json("Completed todo deleted successfully!");
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json("Server Error");
+  }
+});
+
 
 app.listen(5000, () => {
   console.log("server has started on port 5000");
