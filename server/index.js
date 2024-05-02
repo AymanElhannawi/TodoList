@@ -119,6 +119,85 @@ app.delete("/complete/:id", async (req, res) => {
   }
 });
 
+app.post("/signup", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // Check if user already exists
+    const user = await pool.query("SELECT * FROM users WHERE username = $1", [
+      username
+    ]);
+    if (user.rows.length > 0) {
+      return res.status(400).json("User already exists");
+    }
+
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Insert user into database
+    const newUser = await pool.query(
+      "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *",
+      [username, hashedPassword]
+    );
+
+    res.json({ message: "User created successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json("Server Error");
+  }
+});
+
+// Login endpoint
+app.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // Check if user exists
+    const user = await pool.query("SELECT * FROM users WHERE username = $1", [
+      username
+    ]);
+    if (user.rows.length === 0) {
+      return res.status(401).json("Invalid credentials");
+    }
+
+    // Check password
+    const validPassword = await bcrypt.compare(
+      password,
+      user.rows[0].password
+    );
+    if (!validPassword) {
+      return res.status(401).json("Invalid credentials");
+    }
+
+    // Generate JWT
+    const token = jwt.sign({ user_id: user.rows[0].user_id }, "secret");
+
+    res.json({ token });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json("Server Error");
+  }
+});
+
+// Middleware to verify JWT
+const verifyToken = (req, res, next) => {
+  const token = req.header("Authorization");
+  if (!token) return res.status(401).json("Access Denied");
+
+  try {
+    const verified = jwt.verify(token, "secret");
+    req.user = verified;
+    next();
+  } catch (err) {
+    res.status(400).json("Invalid Token");
+  }
+};
+
+// Protected route
+app.get("/protected", verifyToken, (req, res) => {
+  res.json(req.user);
+});
 
 app.listen(5000, () => {
   console.log("server has started on port 5000");

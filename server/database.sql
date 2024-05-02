@@ -8,3 +8,5 @@ CREATE TABLE complete(
     comp_id SERIAL PRIMARY KEY,
     description VARCHAR(225)
 );
+
+create
